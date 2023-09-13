@@ -19,8 +19,8 @@ fn main() {
     ];
     deck.shuffle(&mut thread_rng());
 
-    let freecells = ["(A)", "(B)", "(C)", "(D)"];
-    let ace_piles = ["(E)", "(F)", "(G)", "(H)"];
+    let mut freecells = ["   ", "   ", "   ", "   "];
+    let ace_piles = ["   ", "   ", "   ", "   "];
 
     let mut cascades: [Vec<&str>; 8] = [
         Vec::new(),
@@ -59,8 +59,8 @@ fn main() {
         let longest_len = cascades.iter().max_by_key(|col| col.len()).unwrap().len();
         for i in 0..longest_len {
             print!("\t");
-            for col in 0..8 {
-                let s = cascades[col].get(i).unwrap_or(&"   ");
+            for cascade in &cascades {
+                let s = cascade.get(i).unwrap_or(&"   ");
                 if stdout.is_tty() {
                     print!("{}\t", s.with(card_color(s)));
                 } else {
@@ -104,13 +104,18 @@ fn main() {
                 vertical_max = (cascades[cursor_pos.0 as usize].len() + 1) as u16;
             } else if event == Event::Key(KeyCode::Esc.into()) {
                 continue 'outer;
-            } else if event == Event::Key(KeyCode::Enter.into()) {
+            } else if event == Event::Key(KeyCode::Enter.into())
+                || event == Event::Key(KeyCode::Char(' ').into())
+            {
                 break;
             }
 
             cursor_pos.1 = cursor_pos.1.clamp(0, vertical_max);
         }
-        let pick_pos = (cursor_pos.0 as usize, (cursor_pos.1 - 2) as usize);
+        if cursor_pos.1 == 0 && cursor_pos.0 > 3 {
+            continue;
+        }
+        let pick_pos = (cursor_pos.0 as usize, cursor_pos.1 as usize);
 
         execute!(
             stdout,
@@ -152,18 +157,44 @@ fn main() {
                 cursor_pos.0 = cursor_pos.0.saturating_add(1).clamp(0, 7);
             } else if event == Event::Key(KeyCode::Esc.into()) {
                 continue 'outer;
-            } else if event == Event::Key(KeyCode::Enter.into()) {
+            } else if event == Event::Key(KeyCode::Enter.into())
+                || event == Event::Key(KeyCode::Char(' ').into())
+            {
                 break;
             }
         }
         let place_column = cursor_pos.0 as usize;
 
-        if can_place(
-            cascades[pick_pos.0][pick_pos.1],
-            cascades[place_column].last().unwrap(),
-        ) {
-            let card = cascades[pick_pos.0].remove(pick_pos.1);
-            cascades[place_column].push(card);
+        if pick_pos.1 == 0
+            && top
+            && pick_pos.0 < 4
+            && place_column < 4
+            && freecells[place_column] == "   "
+        {
+            let tmp = freecells[pick_pos.0];
+            freecells[pick_pos.0] = "   ";
+            freecells[place_column] = tmp;
+        } else if pick_pos.0 < 4
+            && can_place(
+                freecells[pick_pos.0],
+                cascades[place_column].last().unwrap(),
+            )
+        {
+            let tmp = freecells[pick_pos.0];
+            freecells[pick_pos.0] = "   ";
+            cascades[place_column].push(tmp);
+        } else {
+            let pick_pos = (pick_pos.0, pick_pos.1 - 2);
+            if top && place_column < 4 && freecells[place_column] == "   " {
+                let card = cascades[pick_pos.0].remove(pick_pos.1);
+                freecells[place_column] = card;
+            } else if can_place(
+                cascades[pick_pos.0][pick_pos.1],
+                cascades[place_column].last().unwrap(),
+            ) {
+                let card = cascades[pick_pos.0].remove(pick_pos.1);
+                cascades[place_column].push(card);
+            }
         }
     }
 }
