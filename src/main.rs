@@ -121,10 +121,14 @@ fn main() {
         )
         .unwrap();
 
+        let mut top = false;
         loop {
             execute!(
                 stdout,
-                cursor::MoveTo(8 + cursor_pos.0 * 8, (longest_len + 2) as u16)
+                cursor::MoveTo(
+                    8 + cursor_pos.0 * 8,
+                    if top { 0 } else { (longest_len + 2) as u16 }
+                )
             )
             .unwrap();
 
@@ -132,6 +136,12 @@ fn main() {
 
             if event == Event::Key(KeyCode::Char('q').into()) {
                 quit()
+            } else if event == Event::Key(KeyCode::Up.into())
+                || event == Event::Key(KeyCode::Char('k').into())
+                || event == Event::Key(KeyCode::Down.into())
+                || event == Event::Key(KeyCode::Char('j').into())
+            {
+                top ^= true;
             } else if event == Event::Key(KeyCode::Left.into())
                 || event == Event::Key(KeyCode::Char('h').into())
             {
