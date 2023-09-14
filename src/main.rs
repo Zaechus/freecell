@@ -140,44 +140,57 @@ fn main() {
                 stdout,
                 cursor::MoveTo(
                     8 + cursor_pos.0 * 8,
-                    if top { 0 } else { (longest_len + 2) as u16 }
+                    if top { 0 } else { (longest_len + 1) as u16 }
                 )
             )
             .unwrap();
 
-            let event = event::read().unwrap();
-
-            if event == Event::Key(KeyCode::Char('q').into()) {
-                quit()
-            } else if event == Event::Key(KeyCode::Up.into())
-                || event == Event::Key(KeyCode::Char('k').into())
-                || event == Event::Key(KeyCode::Down.into())
-                || event == Event::Key(KeyCode::Char('j').into())
-            {
-                top ^= true;
-            } else if event == Event::Key(KeyCode::Left.into())
-                || event == Event::Key(KeyCode::Char('h').into())
-            {
-                cursor_pos.0 = cursor_pos.0.saturating_sub(1).clamp(0, 7);
-            } else if event == Event::Key(KeyCode::Right.into())
-                || event == Event::Key(KeyCode::Char('l').into())
-            {
-                cursor_pos.0 = cursor_pos.0.saturating_add(1).clamp(0, 7);
-            } else if event == Event::Key(KeyCode::Esc.into()) {
-                continue 'outer;
-            } else if event == Event::Key(KeyCode::Enter.into())
-                || event == Event::Key(KeyCode::Char(' ').into())
-            {
-                break;
+            if let Event::Key(KeyEvent { code, .. }) = event::read().unwrap() {
+                match code {
+                    KeyCode::Char('h') | KeyCode::Left => {
+                        cursor_pos.0 = cursor_pos.0.saturating_sub(1).clamp(0, 7);
+                    }
+                    KeyCode::Char('j') | KeyCode::Down | KeyCode::Char('k') | KeyCode::Up => {
+                        top ^= true;
+                    }
+                    KeyCode::Char('l') | KeyCode::Right => {
+                        cursor_pos.0 = cursor_pos.0.saturating_add(1).clamp(0, 7);
+                    }
+                    KeyCode::Char('q') => quit(),
+                    KeyCode::Esc => continue 'outer,
+                    KeyCode::Char(' ') | KeyCode::Enter => break,
+                    _ => (),
+                }
             }
         }
         let place_column = cursor_pos.0 as usize;
+
+        if top
+            && (place_column < 4 && cards[place_column][0] == "   "
+                || can_move_to_foundation(cards[pick_pos.0][pick_pos.1], cards[place_column][0]))
+            || can_move(
+                cards[pick_pos.0][pick_pos.1],
+                cards[place_column].last().unwrap_or(&"   "),
+            )
+            || cards[place_column].len() == 1
+        {
+            let card = cards[pick_pos.0][pick_pos.1];
+            if pick_pos.0 < 4 && pick_pos.1 == 0 && top {
+                cards[place_column][0] = card;
+                cards[pick_pos.0][pick_pos.1] = "   ";
+            } else if top {
+                cards[place_column][0] = card;
+                cards[pick_pos.0].remove(pick_pos.1);
+            } else {
+                cards[place_column].push(card);
+                cards[pick_pos.0].remove(pick_pos.1);
+            }
+        }
     }
 }
 
-fn can_place(picked: &str, place: &str) -> bool {
+fn can_move(picked: &str, place: &str) -> bool {
     (card_value(picked) + 1) == card_value(place) && card_color(picked) != card_color(place)
-        || place == "   "
 }
 
 fn can_move_to_foundation(card: &str, foundation_top: &str) -> bool {
