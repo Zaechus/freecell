@@ -73,8 +73,11 @@ fn main() {
         }
         stdout.flush().unwrap();
 
-        let mut vertical_max = (cards[cursor_pos.0 as usize].len() + 1) as u16;
         loop {
+            cursor_pos.1 = cursor_pos
+                .1
+                .clamp(0, (cards[cursor_pos.0 as usize].len() + 1) as u16 - 2);
+
             execute!(
                 stdout,
                 cursor::MoveTo(
@@ -92,7 +95,6 @@ fn main() {
                 match code {
                     KeyCode::Char('h') | KeyCode::Left => {
                         cursor_pos.0 = cursor_pos.0.saturating_sub(1).clamp(0, 7);
-                        vertical_max = (cards[cursor_pos.0 as usize].len() + 1) as u16;
                     }
                     KeyCode::Char('j') | KeyCode::Down => {
                         cursor_pos.1 = cursor_pos.1.saturating_add(1);
@@ -102,7 +104,6 @@ fn main() {
                     }
                     KeyCode::Char('l') | KeyCode::Right => {
                         cursor_pos.0 = cursor_pos.0.saturating_add(1).clamp(0, 7);
-                        vertical_max = (cards[cursor_pos.0 as usize].len() + 1) as u16;
                     }
                     KeyCode::Char('q') => quit(),
                     KeyCode::Esc => continue 'outer,
@@ -110,13 +111,25 @@ fn main() {
                     _ => (),
                 }
             }
-
-            cursor_pos.1 = cursor_pos.1.clamp(0, vertical_max - 2);
-        }
-        if cursor_pos.1 == 0 && cursor_pos.0 > 3 {
-            continue;
         }
         let pick_pos = (cursor_pos.0 as usize, cursor_pos.1 as usize);
+        if pick_pos.0 > 3 && pick_pos.1 == 0 || cards[pick_pos.0][pick_pos.1] == "   " {
+            continue;
+        }
+
+        let selected_cards = if pick_pos.1 > 0 {
+            &cards[pick_pos.0][pick_pos.1..]
+        } else {
+            &cards[pick_pos.0][pick_pos.1..1]
+        };
+
+        if selected_cards.len() > 1 {
+            for i in 1..selected_cards.len() {
+                if !can_move(selected_cards[i], selected_cards[i - 1]) {
+                    continue 'outer;
+                }
+            }
+        }
 
         execute!(
             stdout,
@@ -136,14 +149,8 @@ fn main() {
 
         let mut top = false;
         loop {
-            execute!(
-                stdout,
-                cursor::MoveTo(
-                    8 + cursor_pos.0 * 8,
-                    if top { 0 } else { (longest_len + 1) as u16 }
-                )
-            )
-            .unwrap();
+            cursor_pos.1 = if top { 0 } else { (longest_len + 1) as u16 };
+            execute!(stdout, cursor::MoveTo(8 + cursor_pos.0 * 8, cursor_pos.1)).unwrap();
 
             if let Event::Key(KeyEvent { code, .. }) = event::read().unwrap() {
                 match code {
@@ -167,24 +174,42 @@ fn main() {
 
         if top
             && (place_column < 4 && cards[place_column][0] == "   "
-                || can_move_to_foundation(cards[pick_pos.0][pick_pos.1], cards[place_column][0]))
+                || can_move_to_foundation(selected_cards[0], cards[place_column][0]))
             || can_move(
-                cards[pick_pos.0][pick_pos.1],
+                selected_cards[0],
                 cards[place_column].last().unwrap_or(&"   "),
             )
             || cards[place_column].len() == 1
         {
-            let card = cards[pick_pos.0][pick_pos.1];
-            if pick_pos.0 < 4 && pick_pos.1 == 0 && top {
-                cards[place_column][0] = card;
-                cards[pick_pos.0][pick_pos.1] = "   ";
-            } else if top {
-                cards[place_column][0] = card;
-                cards[pick_pos.0].remove(pick_pos.1);
+            if selected_cards.len() > 1 && !top {
+                let tmp: Vec<_> = cards[pick_pos.0].drain(pick_pos.1..).collect();
+                cards[place_column].extend(tmp);
             } else {
-                cards[place_column].push(card);
-                cards[pick_pos.0].remove(pick_pos.1);
+                if top {
+                    cards[place_column][0] = selected_cards[0];
+                } else {
+                    cards[place_column].push(selected_cards[0]);
+                }
+
+                if pick_pos.0 < 4 && pick_pos.1 == 0 {
+                    cards[pick_pos.0][pick_pos.1] = "   ";
+                } else {
+                    cards[pick_pos.0].remove(pick_pos.1);
+                }
             }
+
+            execute!(
+                stdout,
+                cursor::MoveTo(
+                    (cursor_pos.0 + 1) * 8 - 1,
+                    if cursor_pos.1 == 0 {
+                        0
+                    } else {
+                        cursor_pos.1 + 1
+                    }
+                ),
+            )
+            .unwrap();
         }
     }
 }
