@@ -1,4 +1,5 @@
 use std::{
+    env,
     io::{stdout, Write},
     process,
 };
@@ -18,6 +19,8 @@ fn main() {
     if !stdout.is_tty() {
         quit()
     }
+
+    let restrict_movement = !env::args().any(|arg| arg == "--no-restrict");
 
     let mut deck = vec![
         "A ♠", "2 ♠", "3 ♠", "4 ♠", "5 ♠", "6 ♠", "7 ♠", "8 ♠", "9 ♠", "10♠", "J ♠", "Q ♠", "K ♠",
@@ -121,7 +124,6 @@ fn main() {
             continue;
         }
 
-        // TODO: limit cards by number of free cells
         let selected_cards = if pick_pos.1 > 0 {
             &cards[pick_pos.0][pick_pos.1..]
         } else {
@@ -185,6 +187,16 @@ fn main() {
             }
         }
         let place_column = cursor_pos.0 as usize;
+
+        if restrict_movement {
+            let max_selected = 1
+                + cards[..4].iter().filter(|col| col[0] == "   ").count()
+                + cards.iter().filter(|col| col.len() == 1).count()
+                - (cards[place_column].len() == 1) as usize;
+            if selected_cards.len() > max_selected {
+                continue;
+            }
+        }
 
         if moving_to_top_row
             && (place_column < 4 && cards[place_column][0] == "   "
