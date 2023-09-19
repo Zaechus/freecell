@@ -1,16 +1,24 @@
-use std::io::{stdout, Write};
+use std::{
+    io::{stdout, Write},
+    process,
+};
 
 use crossterm::{
     cursor,
     event::{self, Event, KeyCode, KeyEvent},
     execute, queue,
     style::{Color, Print, Stylize},
-    terminal::{self, disable_raw_mode, enable_raw_mode},
+    terminal::{self, disable_raw_mode, enable_raw_mode, ClearType},
     tty::IsTty,
 };
 use rand::{seq::SliceRandom, thread_rng};
 
 fn main() {
+    let mut stdout = stdout();
+    if !stdout.is_tty() {
+        quit()
+    }
+
     let mut deck = vec![
         "A ♠", "2 ♠", "3 ♠", "4 ♠", "5 ♠", "6 ♠", "7 ♠", "8 ♠", "9 ♠", "10♠", "J ♠", "Q ♠", "K ♠",
         "A ❤", "2 ❤", "3 ❤", "4 ❤", "5 ❤", "6 ❤", "7 ❤", "8 ❤", "9 ❤", "10❤", "J ❤", "Q ❤", "K ❤",
@@ -37,7 +45,6 @@ fn main() {
     let mut cursor_pos: (u16, u16) = (0, 0);
 
     enable_raw_mode().unwrap();
-    let mut stdout = stdout();
     queue!(stdout, terminal::Clear(terminal::ClearType::All),).unwrap();
 
     'outer: loop {
@@ -50,11 +57,7 @@ fn main() {
 
         print!("\t");
         for col in &cards {
-            if stdout.is_tty() {
-                print!("{}\t", col[0].with(card_color(col[0])))
-            } else {
-                print!("{}\t", col[0])
-            }
+            print!("{}\t", col[0].with(card_color(col[0])))
         }
         print!("\r\n\r\n");
 
@@ -63,11 +66,7 @@ fn main() {
             print!("\t");
             for cascade in &cards {
                 let s = cascade.get(i).unwrap_or(&"   ");
-                if stdout.is_tty() {
-                    print!("{}\t", s.with(card_color(s)));
-                } else {
-                    print!("{}\t", s)
-                }
+                print!("{}\t", s.with(card_color(s)));
             }
             print!("\r\n");
         }
@@ -117,6 +116,7 @@ fn main() {
             continue;
         }
 
+        // TODO: limit cards by number of free cells
         let selected_cards = if pick_pos.1 > 0 {
             &cards[pick_pos.0][pick_pos.1..]
         } else {
@@ -147,9 +147,13 @@ fn main() {
         )
         .unwrap();
 
-        let mut top = false;
+        let mut moving_to_top_row = false;
         loop {
-            cursor_pos.1 = if top { 0 } else { (longest_len + 1) as u16 };
+            cursor_pos.1 = if moving_to_top_row {
+                0
+            } else {
+                (longest_len + 1) as u16
+            };
             execute!(stdout, cursor::MoveTo(8 + cursor_pos.0 * 8, cursor_pos.1)).unwrap();
 
             if let Event::Key(KeyEvent { code, .. }) = event::read().unwrap() {
@@ -158,7 +162,7 @@ fn main() {
                         cursor_pos.0 = cursor_pos.0.saturating_sub(1).clamp(0, 7);
                     }
                     KeyCode::Char('j') | KeyCode::Down | KeyCode::Char('k') | KeyCode::Up => {
-                        top ^= true;
+                        moving_to_top_row ^= true;
                     }
                     KeyCode::Char('l') | KeyCode::Right => {
                         cursor_pos.0 = cursor_pos.0.saturating_add(1).clamp(0, 7);
@@ -172,7 +176,7 @@ fn main() {
         }
         let place_column = cursor_pos.0 as usize;
 
-        if top
+        if moving_to_top_row
             && (place_column < 4 && cards[place_column][0] == "   "
                 || can_move_to_foundation(selected_cards[0], cards[place_column][0]))
             || can_move(
@@ -181,45 +185,37 @@ fn main() {
             )
             || cards[place_column].len() == 1
         {
-            if selected_cards.len() > 1 && !top {
+            if selected_cards.len() > 1 && !moving_to_top_row {
                 let tmp: Vec<_> = cards[pick_pos.0].drain(pick_pos.1..).collect();
                 cards[place_column].extend(tmp);
             } else {
-                if top {
+                if moving_to_top_row {
                     cards[place_column][0] = selected_cards[0];
                 } else {
                     cards[place_column].push(selected_cards[0]);
                 }
 
-                if pick_pos.0 < 4 && pick_pos.1 == 0 {
-                    cards[pick_pos.0][pick_pos.1] = "   ";
-                } else {
-                    cards[pick_pos.0].remove(pick_pos.1);
+                if !(moving_to_top_row
+                    && pick_pos.0 == place_column
+                    && cards[place_column].len() == 1)
+                {
+                    if pick_pos.0 < 4 && pick_pos.1 == 0 {
+                        cards[pick_pos.0][pick_pos.1] = "   ";
+                    } else {
+                        cards[pick_pos.0].remove(pick_pos.1);
+                    }
                 }
             }
-
-            execute!(
-                stdout,
-                cursor::MoveTo(
-                    (cursor_pos.0 + 1) * 8 - 1,
-                    if cursor_pos.1 == 0 {
-                        0
-                    } else {
-                        cursor_pos.1 + 1
-                    }
-                ),
-            )
-            .unwrap();
         }
     }
 }
 
 fn can_move(picked: &str, place: &str) -> bool {
-    (card_value(picked) + 1) == card_value(place) && card_color(picked) != card_color(place)
+    card_value(picked) + 1 == card_value(place) && card_color(picked) != card_color(place)
 }
 
 fn can_move_to_foundation(card: &str, foundation_top: &str) -> bool {
-    (card_value(card) - 1) == card_value(foundation_top)
+    card_value(card) - 1 == card_value(foundation_top)
         && card.chars().nth(2) == foundation_top.chars().nth(2)
         || card_value(card) == 1 && card_value(foundation_top) == 0
 }
@@ -252,5 +248,11 @@ fn card_color(s: &str) -> Color {
 
 fn quit() {
     disable_raw_mode().unwrap();
-    std::process::exit(0);
+    execute!(
+        stdout(),
+        cursor::MoveTo(0, 0),
+        terminal::Clear(ClearType::All)
+    )
+    .unwrap();
+    process::exit(0);
 }
