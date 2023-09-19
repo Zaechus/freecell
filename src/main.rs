@@ -198,7 +198,7 @@ fn main() {
             if selected_cards.len() > 1 && !moving_to_top_row {
                 let tmp: Vec<_> = cards[pick_pos.0].drain(pick_pos.1..).collect();
                 cards[place_column].extend(tmp);
-            } else {
+            } else if selected_cards.len() == 1 {
                 if moving_to_top_row {
                     cards[place_column][0] = selected_cards[0];
                 } else {
