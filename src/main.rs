@@ -5,7 +5,7 @@ use std::{
 
 use crossterm::{
     cursor,
-    event::{self, Event, KeyCode, KeyEvent},
+    event::{self, Event, KeyCode, KeyEvent, KeyEventKind},
     execute, queue,
     style::{Color, Print, Stylize},
     terminal::{self, disable_raw_mode, enable_raw_mode, ClearType},
@@ -90,7 +90,12 @@ fn main() {
             )
             .unwrap();
 
-            if let Event::Key(KeyEvent { code, .. }) = event::read().unwrap() {
+            if let Event::Key(KeyEvent {
+                code,
+                kind: KeyEventKind::Press,
+                ..
+            }) = event::read().unwrap()
+            {
                 match code {
                     KeyCode::Char('h') | KeyCode::Left => {
                         cursor_pos.0 = cursor_pos.0.saturating_sub(1).clamp(0, 7);
@@ -156,7 +161,12 @@ fn main() {
             };
             execute!(stdout, cursor::MoveTo(8 + cursor_pos.0 * 8, cursor_pos.1)).unwrap();
 
-            if let Event::Key(KeyEvent { code, .. }) = event::read().unwrap() {
+            if let Event::Key(KeyEvent {
+                code,
+                kind: KeyEventKind::Press,
+                ..
+            }) = event::read().unwrap()
+            {
                 match code {
                     KeyCode::Char('h') | KeyCode::Left => {
                         cursor_pos.0 = cursor_pos.0.saturating_sub(1).clamp(0, 7);
