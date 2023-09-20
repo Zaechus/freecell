@@ -1,8 +1,4 @@
-use std::{
-    env,
-    io::{stdout, Write},
-    process,
-};
+use std::{env, io::stdout, process};
 
 use crossterm::{
     cursor,
@@ -73,7 +69,6 @@ fn main() {
             }
             print!("\r\n");
         }
-        stdout.flush().unwrap();
 
         loop {
             cursor_pos.1 = cursor_pos
