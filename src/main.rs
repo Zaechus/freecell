@@ -194,34 +194,35 @@ fn main() {
         }
 
         if moving_to_top_row
+            && selected_cards.len() == 1
             && (place_column < 4 && cards[place_column][0] == "   "
                 || can_move_to_foundation(selected_cards[0], cards[place_column][0]))
+        {
+            if pick_pos.1 == 0 {
+                let tmp = cards[pick_pos.0][pick_pos.1];
+                cards[pick_pos.0][pick_pos.1] = "   ";
+                cards[place_column][0] = tmp;
+            } else {
+                let tmp = cards[pick_pos.0].remove(pick_pos.1);
+                cards[place_column][0] = tmp;
+            }
+        } else if cards[place_column].len() == 1
             || can_move(
                 selected_cards[0],
                 cards[place_column].last().unwrap_or(&"   "),
             )
-            || cards[place_column].len() == 1
         {
-            if selected_cards.len() > 1 && !moving_to_top_row {
+            if selected_cards.len() == 1 {
+                if pick_pos.1 == 0 {
+                    cards[place_column].push(cards[pick_pos.0][pick_pos.1]);
+                    cards[pick_pos.0][pick_pos.1] = "   ";
+                } else {
+                    let tmp = cards[pick_pos.0].remove(pick_pos.1);
+                    cards[place_column].push(tmp);
+                }
+            } else if selected_cards.len() > 1 {
                 let tmp: Vec<_> = cards[pick_pos.0].drain(pick_pos.1..).collect();
                 cards[place_column].extend(tmp);
-            } else if selected_cards.len() == 1 {
-                if moving_to_top_row {
-                    cards[place_column][0] = selected_cards[0];
-                } else {
-                    cards[place_column].push(selected_cards[0]);
-                }
-
-                if !(moving_to_top_row
-                    && pick_pos.0 == place_column
-                    && cards[place_column].len() == 1)
-                {
-                    if pick_pos.0 < 4 && pick_pos.1 == 0 {
-                        cards[pick_pos.0][pick_pos.1] = "   ";
-                    } else {
-                        cards[pick_pos.0].remove(pick_pos.1);
-                    }
-                }
             }
         }
     }
