@@ -184,10 +184,11 @@ fn main() {
         let place_column = cursor_pos.0 as usize;
 
         if restrict_movement {
+            let free_cells = cards[..4].iter().filter(|col| col[0] == "   ").count();
             let max_selected = 1
-                + cards[..4].iter().filter(|col| col[0] == "   ").count()
-                + cards.iter().filter(|col| col.len() == 1).count()
-                - (cards[place_column].len() == 1) as usize;
+                + free_cells
+                + cards.iter().filter(|col| col.len() == 1).count() * (free_cells + 1)
+                - (cards[place_column].len() == 1) as usize * (free_cells + 1);
             if selected_cards.len() > max_selected {
                 continue;
             }
