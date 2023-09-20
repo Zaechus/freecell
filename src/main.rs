@@ -44,13 +44,13 @@ fn main() {
     let mut cursor_pos: (u16, u16) = (0, 0);
 
     enable_raw_mode().unwrap();
-    queue!(stdout, terminal::Clear(terminal::ClearType::All),).unwrap();
 
+    queue!(stdout, terminal::Clear(terminal::ClearType::All)).unwrap();
     'outer: loop {
         queue!(
             stdout,
-            terminal::Clear(terminal::ClearType::All),
-            cursor::MoveTo(0, 0)
+            cursor::MoveTo(0, 0),
+            terminal::Clear(terminal::ClearType::FromCursorDown),
         )
         .unwrap();
 
@@ -267,11 +267,6 @@ fn card_color(s: &str) -> Color {
 
 fn quit() {
     disable_raw_mode().unwrap();
-    execute!(
-        stdout(),
-        cursor::MoveTo(0, 0),
-        terminal::Clear(ClearType::All)
-    )
-    .unwrap();
+    execute!(stdout(), terminal::Clear(ClearType::All)).unwrap();
     process::exit(0);
 }
