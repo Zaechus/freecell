@@ -107,6 +107,10 @@ fn main() {
                     KeyCode::Char('l') | KeyCode::Right => {
                         cursor_pos.0 = cursor_pos.0.saturating_add(1).clamp(0, 7);
                     }
+                    KeyCode::Char('K') | KeyCode::PageUp => cursor_pos.1 = 0,
+                    KeyCode::Char('J') | KeyCode::PageDown => {
+                        cursor_pos.1 = cards[cursor_pos.0 as usize].len() as u16
+                    }
                     KeyCode::Char('q') => quit(),
                     KeyCode::Esc => continue 'outer,
                     KeyCode::Char(' ') | KeyCode::Enter => break,
