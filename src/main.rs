@@ -1,4 +1,4 @@
-use std::{env, io::stdout, process};
+use std::{cmp::Ordering, env, io::stdout, process};
 
 use crossterm::{
     cursor,
@@ -213,17 +213,21 @@ fn main() {
                 cards[place_column].last().unwrap_or(&"   "),
             )
         {
-            if selected_cards.len() == 1 {
-                if pick_pos.1 == 0 {
-                    cards[place_column].push(cards[pick_pos.0][pick_pos.1]);
-                    cards[pick_pos.0][pick_pos.1] = "   ";
-                } else {
-                    let tmp = cards[pick_pos.0].remove(pick_pos.1);
-                    cards[place_column].push(tmp);
+            match selected_cards.len().cmp(&1) {
+                Ordering::Equal => {
+                    if pick_pos.1 == 0 {
+                        cards[place_column].push(cards[pick_pos.0][pick_pos.1]);
+                        cards[pick_pos.0][pick_pos.1] = "   ";
+                    } else {
+                        let tmp = cards[pick_pos.0].remove(pick_pos.1);
+                        cards[place_column].push(tmp);
+                    }
                 }
-            } else if selected_cards.len() > 1 {
-                let tmp: Vec<_> = cards[pick_pos.0].drain(pick_pos.1..).collect();
-                cards[place_column].extend(tmp);
+                Ordering::Greater => {
+                    let tmp: Vec<_> = cards[pick_pos.0].drain(pick_pos.1..).collect();
+                    cards[place_column].extend(tmp);
+                }
+                Ordering::Less => (),
             }
         }
     }
