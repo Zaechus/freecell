@@ -8,7 +8,7 @@ use crossterm::{
     terminal::{self, disable_raw_mode, enable_raw_mode, ClearType},
     tty::IsTty,
 };
-use rand::{seq::SliceRandom, thread_rng};
+use rand::{rng, seq::SliceRandom};
 
 fn main() {
     let mut stdout = stdout();
@@ -24,7 +24,7 @@ fn main() {
         "A ♣", "2 ♣", "3 ♣", "4 ♣", "5 ♣", "6 ♣", "7 ♣", "8 ♣", "9 ♣", "10♣", "J ♣", "Q ♣", "K ♣",
         "A ♦", "2 ♦", "3 ♦", "4 ♦", "5 ♦", "6 ♦", "7 ♦", "8 ♦", "9 ♦", "10♦", "J ♦", "Q ♦", "K ♦",
     ];
-    deck.shuffle(&mut thread_rng());
+    deck.shuffle(&mut rng());
 
     let mut cards: [Vec<&str>; 8] = [
         vec!["   "],
