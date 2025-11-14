@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, env, io::stdout, process};
+use std::{cmp::Ordering, env, io::stdout, process::ExitCode};
 
 use crossterm::{
     cursor,
@@ -8,12 +8,12 @@ use crossterm::{
     terminal::{self, disable_raw_mode, enable_raw_mode, ClearType},
     tty::IsTty,
 };
-use rand::{seq::SliceRandom, thread_rng};
+use rand::seq::SliceRandom;
 
-fn main() {
+fn main() -> ExitCode {
     let mut stdout = stdout();
     if !stdout.is_tty() {
-        quit()
+        return ExitCode::FAILURE;
     }
 
     let restrict_movement = !env::args().any(|arg| arg == "--no-restrict");
@@ -24,7 +24,7 @@ fn main() {
         "A ♣", "2 ♣", "3 ♣", "4 ♣", "5 ♣", "6 ♣", "7 ♣", "8 ♣", "9 ♣", "10♣", "J ♣", "Q ♣", "K ♣",
         "A ♦", "2 ♦", "3 ♦", "4 ♦", "5 ♦", "6 ♦", "7 ♦", "8 ♦", "9 ♦", "10♦", "J ♦", "Q ♦", "K ♦",
     ];
-    deck.shuffle(&mut thread_rng());
+    deck.shuffle(&mut rand::rng());
 
     let mut cards: [Vec<&str>; 8] = [
         vec!["   "],
@@ -44,8 +44,13 @@ fn main() {
     let mut cursor_pos: (u16, u16) = (0, 0);
 
     enable_raw_mode().unwrap();
+    queue!(
+        stdout,
+        cursor::SetCursorStyle::SteadyBlock,
+        terminal::Clear(terminal::ClearType::All)
+    )
+    .unwrap();
 
-    queue!(stdout, terminal::Clear(terminal::ClearType::All)).unwrap();
     'outer: loop {
         queue!(
             stdout,
@@ -111,7 +116,7 @@ fn main() {
                     KeyCode::Char('J') | KeyCode::PageDown => {
                         cursor_pos.1 = cards[cursor_pos.0 as usize].len() as u16
                     }
-                    KeyCode::Char('q') => quit(),
+                    KeyCode::Char('q') => return quit(),
                     KeyCode::Esc => continue 'outer,
                     KeyCode::Char(' ') | KeyCode::Enter => break,
                     _ => (),
@@ -178,7 +183,7 @@ fn main() {
                     KeyCode::Char('l') | KeyCode::Right => {
                         cursor_pos.0 = cursor_pos.0.saturating_add(1).clamp(0, 7);
                     }
-                    KeyCode::Char('q') => quit(),
+                    KeyCode::Char('q') => return quit(),
                     KeyCode::Esc => continue 'outer,
                     KeyCode::Char(' ') | KeyCode::Enter => break,
                     _ => (),
@@ -273,8 +278,14 @@ fn card_color(s: &str) -> Color {
     }
 }
 
-fn quit() {
+fn quit() -> ExitCode {
     disable_raw_mode().unwrap();
-    execute!(stdout(), terminal::Clear(ClearType::All)).unwrap();
-    process::exit(0);
+    execute!(
+        stdout(),
+        cursor::SetCursorStyle::DefaultUserShape,
+        cursor::MoveTo(0, 0),
+        terminal::Clear(ClearType::All)
+    )
+    .unwrap();
+    ExitCode::SUCCESS
 }
