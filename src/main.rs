@@ -5,7 +5,7 @@ use crossterm::{
     event::{self, Event, KeyCode, KeyEvent, KeyEventKind},
     execute, queue,
     style::{Color, Print, Stylize},
-    terminal::{self, disable_raw_mode, enable_raw_mode, ClearType},
+    terminal,
     tty::IsTty,
 };
 use rand::seq::SliceRandom;
@@ -43,7 +43,7 @@ fn main() -> ExitCode {
 
     let mut cursor_pos: (u16, u16) = (0, 0);
 
-    enable_raw_mode().unwrap();
+    terminal::enable_raw_mode().unwrap();
     queue!(
         stdout,
         cursor::SetCursorStyle::SteadyBlock,
@@ -59,18 +59,28 @@ fn main() -> ExitCode {
         )
         .unwrap();
 
-        print!("\t");
+        let terminal_width = terminal::size().unwrap().0;
+        let tab: u16 = if terminal_width > 72 {
+            8
+        } else if terminal_width > 54 {
+            6
+        } else {
+            4
+        };
+        let utab: usize = tab.into();
+
+        print!("{:utab$}", ' ');
         for col in &cards {
-            print!("{}\t", col[0].with(card_color(col[0])))
+            print!("{}", format!("{:utab$}", col[0]).with(card_color(col[0])));
         }
         print!("\r\n\r\n");
 
         let longest_len = cards.iter().max_by_key(|col| col.len()).unwrap().len();
         for i in 1..longest_len {
-            print!("\t");
+            print!("{:utab$}", ' ');
             for cascade in &cards {
                 let s = cascade.get(i).unwrap_or(&"   ");
-                print!("{}\t", s.with(card_color(s)));
+                print!("{}", format!("{s:utab$}").with(card_color(s)));
             }
             print!("\r\n");
         }
@@ -83,7 +93,7 @@ fn main() -> ExitCode {
             execute!(
                 stdout,
                 cursor::MoveTo(
-                    8 + cursor_pos.0 * 8,
+                    tab + cursor_pos.0 * tab,
                     if cursor_pos.1 == 0 {
                         0
                     } else {
@@ -145,7 +155,7 @@ fn main() -> ExitCode {
         execute!(
             stdout,
             cursor::MoveTo(
-                (cursor_pos.0 + 1) * 8 - 1,
+                (cursor_pos.0 + 1) * tab - 1,
                 if cursor_pos.1 == 0 {
                     0
                 } else {
@@ -153,7 +163,7 @@ fn main() -> ExitCode {
                 }
             ),
             Print("["),
-            cursor::MoveToColumn((cursor_pos.0 + 1) * 8 + 4),
+            cursor::MoveToColumn((cursor_pos.0 + 1) * tab + if tab > 4 { 4 } else { 3 }),
             Print("]"),
         )
         .unwrap();
@@ -165,7 +175,11 @@ fn main() -> ExitCode {
             } else {
                 (longest_len + 1) as u16
             };
-            execute!(stdout, cursor::MoveTo(8 + cursor_pos.0 * 8, cursor_pos.1)).unwrap();
+            execute!(
+                stdout,
+                cursor::MoveTo(tab + cursor_pos.0 * tab, cursor_pos.1)
+            )
+            .unwrap();
 
             if let Event::Key(KeyEvent {
                 code,
@@ -279,13 +293,13 @@ fn card_color(s: &str) -> Color {
 }
 
 fn quit() -> ExitCode {
-    disable_raw_mode().unwrap();
     execute!(
         stdout(),
         cursor::SetCursorStyle::DefaultUserShape,
         cursor::MoveTo(0, 0),
-        terminal::Clear(ClearType::All)
+        terminal::Clear(terminal::ClearType::All)
     )
     .unwrap();
+    terminal::disable_raw_mode().unwrap();
     ExitCode::SUCCESS
 }
