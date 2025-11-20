@@ -1,11 +1,11 @@
 use std::{cmp::Ordering, env, io::stdout, process::ExitCode};
 
 use crossterm::{
-    cursor,
+    cursor::{MoveTo, MoveToColumn, SetCursorStyle},
     event::{self, Event, KeyCode, KeyEvent, KeyEventKind},
     execute, queue,
     style::{Color, Print, Stylize},
-    terminal,
+    terminal::{self, disable_raw_mode, enable_raw_mode, Clear, ClearType},
     tty::IsTty,
 };
 use rand::seq::SliceRandom;
@@ -43,21 +43,11 @@ fn main() -> ExitCode {
 
     let mut cursor_pos: (u16, u16) = (0, 0);
 
-    terminal::enable_raw_mode().unwrap();
-    queue!(
-        stdout,
-        cursor::SetCursorStyle::SteadyBlock,
-        terminal::Clear(terminal::ClearType::All)
-    )
-    .unwrap();
+    enable_raw_mode().unwrap();
+    queue!(stdout, SetCursorStyle::SteadyBlock, Clear(ClearType::All)).unwrap();
 
     'outer: loop {
-        queue!(
-            stdout,
-            cursor::MoveTo(0, 0),
-            terminal::Clear(terminal::ClearType::FromCursorDown),
-        )
-        .unwrap();
+        queue!(stdout, MoveTo(0, 0), Clear(ClearType::FromCursorDown),).unwrap();
 
         let terminal_width = terminal::size().unwrap().0;
         let tab: u16 = if terminal_width > 72 {
@@ -92,7 +82,7 @@ fn main() -> ExitCode {
 
             execute!(
                 stdout,
-                cursor::MoveTo(
+                MoveTo(
                     tab + cursor_pos.0 * tab,
                     if cursor_pos.1 == 0 {
                         0
@@ -154,7 +144,7 @@ fn main() -> ExitCode {
 
         execute!(
             stdout,
-            cursor::MoveTo(
+            MoveTo(
                 (cursor_pos.0 + 1) * tab - 1,
                 if cursor_pos.1 == 0 {
                     0
@@ -163,7 +153,7 @@ fn main() -> ExitCode {
                 }
             ),
             Print("["),
-            cursor::MoveToColumn((cursor_pos.0 + 1) * tab + if tab > 4 { 4 } else { 3 }),
+            MoveToColumn((cursor_pos.0 + 1) * tab + if tab > 4 { 4 } else { 3 }),
             Print("]"),
         )
         .unwrap();
@@ -175,11 +165,7 @@ fn main() -> ExitCode {
             } else {
                 (longest_len + 1) as u16
             };
-            execute!(
-                stdout,
-                cursor::MoveTo(tab + cursor_pos.0 * tab, cursor_pos.1)
-            )
-            .unwrap();
+            execute!(stdout, MoveTo(tab + cursor_pos.0 * tab, cursor_pos.1)).unwrap();
 
             if let Event::Key(KeyEvent {
                 code,
@@ -295,11 +281,11 @@ fn card_color(s: &str) -> Color {
 fn quit() -> ExitCode {
     execute!(
         stdout(),
-        cursor::SetCursorStyle::DefaultUserShape,
-        cursor::MoveTo(0, 0),
-        terminal::Clear(terminal::ClearType::All)
+        SetCursorStyle::DefaultUserShape,
+        MoveTo(0, 0),
+        Clear(ClearType::All)
     )
     .unwrap();
-    terminal::disable_raw_mode().unwrap();
+    disable_raw_mode().unwrap();
     ExitCode::SUCCESS
 }
