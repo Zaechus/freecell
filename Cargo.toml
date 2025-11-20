@@ -6,3 +6,8 @@ edition = "2021"
 [dependencies]
 crossterm = "0.29"
 rand = "0.9"
+
+[profile.release]
+lto = true
+panic = "abort"
+strip = true

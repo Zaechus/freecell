@@ -5,7 +5,10 @@ use crossterm::{
     event::{self, Event, KeyCode, KeyEvent, KeyEventKind},
     execute, queue,
     style::{Color, Print, Stylize},
-    terminal::{self, disable_raw_mode, enable_raw_mode, Clear, ClearType},
+    terminal::{
+        self, disable_raw_mode, enable_raw_mode, Clear, ClearType, EnterAlternateScreen,
+        LeaveAlternateScreen,
+    },
     tty::IsTty,
 };
 use rand::seq::SliceRandom;
@@ -43,11 +46,11 @@ fn main() -> ExitCode {
 
     let mut cursor_pos: (u16, u16) = (0, 0);
 
+    queue!(stdout, EnterAlternateScreen, SetCursorStyle::SteadyBlock).unwrap();
     enable_raw_mode().unwrap();
-    queue!(stdout, SetCursorStyle::SteadyBlock, Clear(ClearType::All)).unwrap();
 
     'outer: loop {
-        queue!(stdout, MoveTo(0, 0), Clear(ClearType::FromCursorDown),).unwrap();
+        queue!(stdout, MoveTo(0, 0), Clear(ClearType::FromCursorDown)).unwrap();
 
         let terminal_width = terminal::size().unwrap().0;
         let tab: u16 = if terminal_width > 72 {
@@ -116,7 +119,7 @@ fn main() -> ExitCode {
                     KeyCode::Char('J') | KeyCode::PageDown => {
                         cursor_pos.1 = cards[cursor_pos.0 as usize].len() as u16
                     }
-                    KeyCode::Char('q') => return quit(),
+                    KeyCode::Char('q') => break 'outer,
                     KeyCode::Esc => continue 'outer,
                     KeyCode::Char(' ') | KeyCode::Enter => break,
                     _ => (),
@@ -183,7 +186,7 @@ fn main() -> ExitCode {
                     KeyCode::Char('l') | KeyCode::Right => {
                         cursor_pos.0 = cursor_pos.0.saturating_add(1).clamp(0, 7);
                     }
-                    KeyCode::Char('q') => return quit(),
+                    KeyCode::Char('q') => break 'outer,
                     KeyCode::Esc => continue 'outer,
                     KeyCode::Char(' ') | KeyCode::Enter => break,
                     _ => (),
@@ -240,6 +243,15 @@ fn main() -> ExitCode {
             }
         }
     }
+
+    disable_raw_mode().unwrap();
+    execute!(
+        stdout,
+        LeaveAlternateScreen,
+        SetCursorStyle::DefaultUserShape,
+    )
+    .unwrap();
+    ExitCode::SUCCESS
 }
 
 fn can_move(picked: &str, place: &str) -> bool {
@@ -276,16 +288,4 @@ fn card_color(s: &str) -> Color {
         '♥' | '♦' => Color::Red,
         _ => Color::Reset,
     }
-}
-
-fn quit() -> ExitCode {
-    execute!(
-        stdout(),
-        SetCursorStyle::DefaultUserShape,
-        MoveTo(0, 0),
-        Clear(ClearType::All)
-    )
-    .unwrap();
-    disable_raw_mode().unwrap();
-    ExitCode::SUCCESS
 }
